@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Uzay Matematik Oyunu</title>
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      color: white;
+      font-family: monospace;
+      overflow: hidden;
+      user-select: none;
+    }
+    canvas {
+      display: block;
+      background: radial-gradient(circle at center, #111 0%, black 100%);
+      margin: 0 auto;
+      max-width: 100vw;
+      max-height: 80vh;
+    }
+    #menu {
+      position: absolute;
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      color: white;
+      font-size: 30px;
+      background: rgba(0,0,0,0.8);
+      padding: 30px;
+      border-radius: 12px;
+      width: 320px;
+    }
+    #menu label {
+      display: block;
+      margin-bottom: 12px;
+      font-size: 20px;
+    }
+    #scoreLimitInput {
+      width: 100%;
+      padding: 8px;
+      font-size: 18px;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+      text-align: center;
+    }
+    #startButton {
+      margin-top: 20px;
+      padding: 12px 25px;
+      font-size: 24px;
+      background: #28a745;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      color: white;
+      font-weight: bold;
+      user-select: none;
+      transition: background 0.3s ease;
+    }
+    #startButton:hover {
+      background: #218838;
+    }
+    #gameUI {
+      display: none;
+      position: absolute;
+      bottom: 15px;
+      width: 100%;
+      text-align: center;
+    }
+    #scoreLives {
+      font-size: 22px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      user-select: none;
+    }
+    #scoreLives span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #scoreEmoji {
+      font-size: 26px;
+    }
+    #livesEmoji {
+      font-size: 26px;
+    }
+    #statusMessage {
+      font-size: 24px;
+      min-height: 30px;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+    #optionsContainer {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      max-width: 90vw;
+    }
+    .optionBtn {
+      background: #222;
+      color: white;
+      border: 2px solid white;
+      border-radius: 12px;
+      padding: 14px 26px;
+      font-size: 22px;
+      cursor: pointer;
+      user-select: none;
+      min-width: 90px;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+    .optionBtn:hover {
+      background: white;
+      color: black;
+    }
+    #controlButtons {
+      margin-top: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+    }
+    .ctrlBtn {
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 20px;
+      font-size: 20px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.3s ease;
+    }
+    .ctrlBtn:hover {
+      background: #0056b3;
+    }
+
+    /* Açılış ekranı Bahtiyar Kara yazısı */
+    #openingScreen {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 48px;
+      font-weight: bold;
+      user-select: none;
+      text-align: center;
+      opacity: 1;
+      transition: opacity 2s ease;
+      z-index: 10;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Açılış ekranı -->
+  <div id="openingScreen">Bahtiyar </div>
+
+  <div id="menu">
+    <label for="scoreLimitInput">Skor limiti (Boş bırakırsan sonsuz mod):</label>
+    <input type="number" id="scoreLimitInput" min="1" placeholder="Örn: 20" />
+    <button id="startButton">Oyunu Başlat</button>
+  </div>
+
+  <div id="gameUI">
+    <div id="scoreLives">
+      <span><span id="scoreEmoji">⭐</span> Skor: <span id="score">0</span></span>
+      <span><span id="livesEmoji">❤️</span> Can: <span id="lives">3</span></span>
+    </div>
+    <div id="statusMessage"></div>
+    <div id="optionsContainer"></div>
+    <div id="controlButtons">
+      <button class="ctrlBtn" id="pauseBtn">Durdur ⏸️</button>
+      <button class="ctrlBtn" id="restartBtn" style="display:none;">Yeniden Başlat 🔄</button>
+      <button class="ctrlBtn" id="menuBtn" style="display:none;">Menu'ye Dön 🔙</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    let cw, ch;
+
+    const openingScreen = document.getElementById("openingScreen");
+    const menu = document.getElementById("menu");
+    const startButton = document.getElementById("startButton");
+    const scoreLimitInput = document.getElementById("scoreLimitInput");
+
+    const gameUI = document.getElementById("gameUI");
+    const scoreSpan = document.getElementById("score");
+    const livesSpan = document.getElementById("lives");
+    const optionsContainer = document.getElementById("optionsContainer");
+    const statusMessage = document.getElementById("statusMessage");
+
+    const pauseBtn = document.getElementById("pauseBtn");
+    const restartBtn = document.getElementById("restartBtn");
+    const menuBtn = document.getElementById("menuBtn");
+
+    let problems = [];
+    let score = 0;
+    let lives = 3;
+    let gameOver = false;
+    let paused = false;
+    let scoreLimit = null; // null means infinite mode
+    let animationId;
+    let currentProblem = null;
+    let messageTimeout;
+
+    // Canvas resize handler
+    function resizeCanvas() {
+      cw = window.innerWidth;
+      ch = window.innerHeight * 0.8; // reserve bottom UI space
+      canvas.width = cw;
+      canvas.height = ch;
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    // Generate problem safely (no eval)
+    function generateProblem() {
+      const a = Math.floor(Math.random() * 10);
+      const b = Math.floor(Math.random() * 10);
+      const ops = ["+", "-", "*"];
+      const op = ops[Math.floor(Math.random() * ops.length)];
+
+      let question, answerNum;
+
+      if (Math.random() < 0.25) { // division problem
+        const divisor = Math.floor(Math.random() * 9) + 1;
+        const quotient = Math.floor(Math.random() * 10);
+        const dividend = divisor * quotient;
+        question = `${dividend} / ${divisor}`;
+        answerNum = quotient;
+      } else {
+        question = `${a} ${op} ${b}`;
+        switch(op) {
+          case "+": answerNum = a + b; break;
+          case "-": answerNum = a - b; break;
+          case "*": answerNum = a * b; break;
+        }
+      }
+
+      return {
+        x: Math.random() * (cw - 100),
+        y: 0,
+        text: question,
+        answer: answerNum.toString(),
+        speed: getRandomSpeed(),
+        color: getRandomColor()
+      };
+    }
+
+    // Random color for numbers (bright colors)
+    function getRandomColor() {
+      const colors = ['#FF4500', '#32CD32', '#1E90FF', '#FFD700', '#FF69B4', '#00FFFF', '#FF8C00'];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    function getRandomSpeed() {
+      // Speed between 0.4 and 1.2 px per frame depending on difficulty
+      return 0.4 + Math.random() * 0.8;
+    }
+
+    // Draw problem on canvas
+    function drawProblem(p) {
+      ctx.fillStyle = p.color;
+      ctx.font = "28px monospace";
+      ctx.fillText(p.text, p.x, p.y);
+    }
+
+    // Clear options container and create new options for current problem
+    function createOptions(problem) {
+      optionsContainer.innerHTML = "";
+      if (!problem) return;
+
+      // Create 3 options: correct + 2 wrong
+      let correct = parseInt(problem.answer);
+      let optionsSet = new Set();
+      optionsSet.add(correct);
+
+      while(optionsSet.size < 3) {
+        let wrong = correct + (Math.floor(Math.random() * 10) - 5);
+        if(wrong < 0) wrong = Math.abs(wrong) + 1;
+        optionsSet.add(wrong);
+      }
+
+      let optionsArray = Array.from(optionsSet);
+      // Shuffle options
+      for (let i = optionsArray.length -1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i+1));
+        [optionsArray[i], optionsArray[j]] = [optionsArray[j], optionsArray[i]];
+      }
+
+      optionsArray.forEach(opt => {
+        const btn = document.createElement("button");
+        btn.classList.add("optionBtn");
+        btn.textContent = opt.toString();
+        btn.onclick = () => checkAnswer(opt.toString());
+        optionsContainer.appendChild(btn);
+      });
+    }
+
+    // Show status message for 2 seconds, cancelling previous message
+    function showMessage(text, color = "white") {
+      clearTimeout(messageTimeout);
+      statusMessage.textContent = text;
+      statusMessage.style.color = color;
+      messageTimeout = setTimeout(() => {
+        statusMessage.textContent = "";
+      }, 2000);
+    }
+
+    function updateGame() {
+      if (gameOver || paused) return;
+
+      ctx.clearRect(0, 0, cw, ch);
+
+      // Move and draw problems
+      problems.forEach(p => {
+        p.y += p.speed;
+        drawProblem(p);
+      });
+
+      // Remove problems that went off screen and lose life
+      for (let i = problems.length -1; i >= 0; i--) {
+        if (problems[i].y > ch) {
+          problems.splice(i, 1);
+          lives--;
+          updateScoreLives();
+          if (lives <= 0) {
+            endGame(false);
+            return;
+          }
+          if (problems.length === 0) {
+            createNewProblem();
+          }
+        }
+      }
+
+      animationId = requestAnimationFrame(updateGame);
+    }
+
+    function updateScoreLives() {
+      scoreSpan.textContent = score;
+      livesSpan.textContent = lives;
+    }
+
+    function createNewProblem() {
+      if (gameOver) return;
+      if (scoreLimit !== null && score >= scoreLimit) {
+        endGame(true);
+        return;
+      }
+      currentProblem = generateProblem();
+      problems.push(currentProblem);
+      createOptions(currentProblem);
+    }
+
+    function checkAnswer(answer) {
+      if (gameOver || paused) return;
+
+      if (answer === currentProblem.answer) {
+        score++;
+        showMessage("Doğru! ⭐", "lime");
+        updateScoreLives();
+        // Remove current problem and create a new one
+        const index = problems.indexOf(currentProblem);
+        if(index !== -1) problems.splice(index, 1);
+        createNewProblem();
+      } else {
+        lives--;
+        showMessage("Yanlış! ❌", "red");
+        updateScoreLives();
+        if (lives <= 0) {
+          endGame(false);
+          return;
+        }
+      }
+    }
+
+    function endGame(won) {
+      gameOver = true;
+      paused = false;
+      cancelAnimationFrame(animationId);
+      optionsContainer.innerHTML = "";
+      if (won) {
+        showMessage("Tebrikler, kazandınız! 🎉", "yellow");
+      } else {
+        showMessage("Oyun bitti! 😞", "red");
+      }
+      pauseBtn.style.display = "none";
+      restartBtn.style.display = "inline-block";
+      menuBtn.style.display = "inline-block";
+    }
+
+    function startGame() {
+      // Reset everything
+      score = 0;
+      lives = 3;
+      gameOver = false;
+      paused = false;
+      problems = [];
+      updateScoreLives();
+      statusMessage.textContent = "";
+      optionsContainer.innerHTML = "";
+      menu.style.display = "none";
+      gameUI.style.display = "block";
+      pauseBtn.style.display = "inline-block";
+      restartBtn.style.display = "none";
+      menuBtn.style.display = "none";
+
+      // Score limit from input
+      let val = parseInt(scoreLimitInput.value);
+      if (!isNaN(val) && val > 0) {
+        scoreLimit = val;
+      } else {
+        scoreLimit = null; // infinite
+      }
+
+      createNewProblem();
+      animationId = requestAnimationFrame(updateGame);
+    }
+
+    // Pause & resume toggle
+    pauseBtn.addEventListener("click", () => {
+      if (!gameOver && !paused) {
+        paused = true;
+        pauseBtn.style.display = "none";
+        restartBtn.style.display = "inline-block"; // allow restart while paused
+        menuBtn.style.display = "inline-block";   // allow menu while paused
+        showMessage("Oyun duraklatıldı ⏸️", "yellow");
+      }
+    });
+
+    restartBtn.addEventListener("click", () => {
+      startGame();
+    });
+
+    menuBtn.addEventListener("click", () => {
+      gameUI.style.display = "none";
+      menu.style.display = "block";
+      paused = false;
+      gameOver = false;
+      cancelAnimationFrame(animationId);
+      statusMessage.textContent = "";
+    });
+
+    startButton.addEventListener("click", () => {
+      openingScreen.style.opacity = "0";
+      setTimeout(() => {
+        openingScreen.style.display = "none";
+      }, 2000);
+      startGame();
+    });
+  </script>
+</body>
+</html>
